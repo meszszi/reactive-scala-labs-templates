@@ -1,6 +1,6 @@
 package EShop.lab2
 
-import EShop.lab2.Checkout.{Data, Uninitialized}
+import EShop.lab2.Checkout._
 import EShop.lab2.CheckoutFSM.Status
 import akka.actor.{ActorRef, LoggingFSM, Props}
 
@@ -26,32 +26,56 @@ class CheckoutFSM extends LoggingFSM[Status.Value, Data] {
   val checkoutTimerDuration: FiniteDuration = 1 seconds
   val paymentTimerDuration: FiniteDuration  = 1 seconds
 
-  private val scheduler = context.system.scheduler
-
   startWith(NotStarted, Uninitialized)
 
-  when(NotStarted) {
-    ???
+  private val waitingForStart: StateFunction = {
+    case Event(StartCheckout, data) =>
+      setTimer("checkoutTimer", ExpireCheckout, checkoutTimerDuration, false)
+      goto(SelectingDelivery).using(data)
   }
 
+  when(NotStarted) { waitingForStart }
+
   when(SelectingDelivery) {
-    ???
+    case Event(SelectDeliveryMethod(deliveryMethod), data) =>
+      goto(SelectingPaymentMethod).using(data)
+
+    case Event(CancelCheckout, data) =>
+      cancelTimer("checkoutTimer")
+      goto(Cancelled).using(data)
+
+    case Event(ExpireCheckout, data) =>
+      goto(Cancelled).using(data)
   }
 
   when(SelectingPaymentMethod) {
-    ???
+    case Event(SelectPayment(paymentMethod), data) =>
+      cancelTimer("checkoutTimer")
+      setTimer("paymentTimer", ExpirePayment, paymentTimerDuration, false)
+      goto(ProcessingPayment).using(data)
+
+    case Event(CancelCheckout, data) =>
+      cancelTimer("checkoutTimer")
+      goto(Cancelled).using(data)
+
+    case Event(ExpireCheckout, data) =>
+      goto(Cancelled).using(data)
   }
 
   when(ProcessingPayment) {
-    ???
+    case Event(ReceivePayment, data) =>
+      cancelTimer("paymentTimer")
+      goto(Closed).using(data)
+
+    case Event(CancelCheckout, data) =>
+      cancelTimer("paymentTimer")
+      goto(Cancelled).using(data)
+
+    case Event(ExpirePayment, data) =>
+      goto(Cancelled).using(data)
   }
 
-  when(Cancelled) {
-    ???
-  }
+  when(Cancelled) { waitingForStart }
 
-  when(Closed) {
-    ???
-  }
-
+  when(Closed) { waitingForStart }
 }
