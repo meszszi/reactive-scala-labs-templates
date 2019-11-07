@@ -1,6 +1,7 @@
 package EShop.lab2
 
 import EShop.lab2.Checkout._
+import EShop.lab3.Payment
 import akka.actor.{Actor, ActorRef, Cancellable, Props}
 import akka.event.Logging
 
@@ -81,6 +82,8 @@ class Checkout(
     case SelectPayment(payment) =>
       log.debug(s"Selecting payment: $payment")
       timer.cancel()
+      val paymentActor = context.system.actorOf(Payment.props(payment, sender, self))
+      sender ! PaymentStarted(paymentActor)
       val paymentTimer = scheduleTimer(paymentTimerDuration, ExpirePayment)
       context become processingPayment(paymentTimer)
   }
@@ -98,6 +101,7 @@ class Checkout(
     case ReceivePayment =>
       log.debug("Receiving payment")
       timer.cancel()
+      cartActor ! CartActor.CloseCheckout
       context become closed
   }
 

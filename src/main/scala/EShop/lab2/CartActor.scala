@@ -2,7 +2,7 @@ package EShop.lab2
 
 import EShop.lab2.CartActor._
 import akka.actor.{Actor, ActorRef, Cancellable, Props}
-import akka.event.Logging
+import akka.event.{Logging, LoggingReceive}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
@@ -34,13 +34,16 @@ class CartActor extends Actor {
 
   def receive: Receive = empty
 
-  def empty: Receive = {
+  def empty: Receive = LoggingReceive {
     case AddItem(item) =>
       log.debug(s"Adding item to cart: $item")
       context become nonEmpty(Cart.empty.addItem(item), scheduleTimer)
+
+    case GetItems =>
+      sender ! Seq.empty
   }
 
-  def nonEmpty(cart: Cart, timer: Cancellable): Receive = {
+  def nonEmpty(cart: Cart, timer: Cancellable): Receive = LoggingReceive {
     case AddItem(item) =>
       log.debug(s"Adding item to cart: $item")
       context become nonEmpty(cart.addItem(item), timer)
@@ -66,10 +69,16 @@ class CartActor extends Actor {
     case StartCheckout =>
       log.debug(s"Starting checkout (cart items: ${cart.items.mkString(",")})")
       timer.cancel()
+      val checkoutActor = context.system.actorOf(Checkout.props(self))
+      checkoutActor ! Checkout.StartCheckout
+      sender() ! CheckoutStarted(checkoutActor)
       context become inCheckout(cart)
+
+    case GetItems =>
+      sender ! cart.items
   }
 
-  def inCheckout(cart: Cart): Receive = {
+  def inCheckout(cart: Cart): Receive = LoggingReceive {
     case CancelCheckout =>
       log.debug(s"Cancelling checkout")
       context become nonEmpty(cart, scheduleTimer)
