@@ -35,7 +35,7 @@ class OrderManagerFSM extends FSM[State, Data] {
   }
 
   when(InCheckout) {
-    case Event(CartActor.CheckoutStarted(checkoutActor), CartDataWithSender(_, reportActor)) =>
+    case Event(CartActor.CheckoutStarted(checkoutActor, _), CartDataWithSender(_, reportActor)) =>
       reportActor ! Done
       stay.using(InCheckoutData(checkoutActor))
 
