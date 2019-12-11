@@ -4,6 +4,7 @@ import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.server.Route
 import akka.stream.ActorMaterializer
+import com.typesafe.config.ConfigFactory
 
 import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.concurrent.duration.Duration
@@ -11,7 +12,10 @@ import scala.util.{Failure, Success}
 
 class PaymentServiceServer extends PaymentRoutes {
 
-  implicit val system: ActorSystem                = ActorSystem("PaymentServiceSystem")
+  implicit val system: ActorSystem = {
+    val config = ConfigFactory.load()
+    ActorSystem("PaymentServiceSystem", config.getConfig("paymentserver").withFallback(config))
+  }
   implicit val materializer: ActorMaterializer    = ActorMaterializer()
   implicit val executionContext: ExecutionContext = system.dispatcher
   lazy val routes: Route                          = userRoutes
