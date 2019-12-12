@@ -45,7 +45,7 @@ class Payment(
         Restart
     }
 
-  //please use this one to notify when supervised actor was stoped
+  //please use this one to notify when supervised actor was stopped
   private def notifyAboutRejection(): Unit = {
     orderManager ! PaymentRejected
     checkout ! PaymentRejected
