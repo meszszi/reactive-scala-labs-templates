@@ -3,6 +3,7 @@ import java.net.URI
 import java.util.zip.GZIPInputStream
 
 import akka.actor.{Actor, ActorSystem, Props}
+import akka.routing.{ActorRefRoutee, RoundRobinRoutingLogic, Router}
 import com.typesafe.config.ConfigFactory
 
 import scala.concurrent.Await
@@ -69,6 +70,26 @@ class ProductCatalog(searchService: SearchService) extends Actor {
   }
 }
 
+object CatalogMaster {
+  def props(searchService: SearchService): Props =
+    Props(new CatalogMaster(searchService))
+}
+
+class CatalogMaster(searchService: SearchService) extends Actor {
+  var router = {
+    val routees = Vector.fill(3) {
+      val r = context.actorOf(ProductCatalog.props(searchService))
+      context.watch(r)
+      ActorRefRoutee(r)
+    }
+    Router(RoundRobinRoutingLogic(), routees)
+  }
+
+  def receive = {
+    case message => router.route(message, sender())
+  }
+}
+
 object ProductCatalogApp extends App {
 
   private val config = ConfigFactory.load()
@@ -79,7 +100,7 @@ object ProductCatalogApp extends App {
   )
 
   productCatalogSystem.actorOf(
-    ProductCatalog.props(new SearchService()),
+    CatalogMaster.props(new SearchService()),
     "productcatalog"
   )
 
