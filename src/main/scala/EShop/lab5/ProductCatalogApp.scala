@@ -3,6 +3,7 @@ import java.net.URI
 import java.util.zip.GZIPInputStream
 
 import akka.actor.{Actor, ActorSystem, Props}
+import akka.event.LoggingReceive
 import akka.routing.{ActorRefRoutee, RoundRobinRoutingLogic, Router}
 import com.typesafe.config.ConfigFactory
 
@@ -64,7 +65,7 @@ class ProductCatalog(searchService: SearchService) extends Actor {
 
   import ProductCatalog._
 
-  override def receive: Receive = {
+  override def receive: Receive = LoggingReceive {
     case GetItems(brand, productKeyWords) =>
       sender() ! Items(searchService.search(brand, productKeyWords))
   }
